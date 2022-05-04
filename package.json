@@ -1,0 +1,11 @@
+{
+  "name": "play-ground",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "gin": "go run gin.go"
+  },
+  "author": "",
+  "license": "ISC"
+}
