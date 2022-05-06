@@ -3,8 +3,9 @@
 ## Settings
 * Packages
   ```
-  go install github.com/go-sql-driver/mysql
-  go install github.com/joho/godotenv
+  go get github.com/go-sql-driver/mysql
+  go get github.com/joho/godotenv
+  go get gopkg.in/yaml.v2
   ```
 * Create environment variables file(.env) 
 
