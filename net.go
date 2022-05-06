@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
@@ -31,7 +32,6 @@ func getJson(url string) {
 
 	for {
 		if err = decoder.Decode(&decoded); err == io.EOF {
-			fmt.Println("@@@@@ JSON fin @@@@")
 			break
 		} else if err != nil {
 			log.Fatal(err)
@@ -48,7 +48,6 @@ func sendJson(url string, params interface{}) {
 	}
 
 	reader := bytes.NewReader(jsonData)
-	client := &http.Client{}
 	req, err := http.NewRequest(
 		"POST",
 		url,
@@ -59,6 +58,10 @@ func sendJson(url string, params interface{}) {
 	}
 
 	req.Header.Add("Content-Type", "application/json")
+
+	conf := &tls.Config{InsecureSkipVerify: true}
+	tr := &http.Transport{TLSClientConfig: conf}
+	client := &http.Client{Transport: tr}
 
 	res, err := client.Do(req)
 	if err != nil {
