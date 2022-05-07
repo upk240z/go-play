@@ -4,35 +4,39 @@ import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"time"
 )
 
-type MySql struct {
+type Database struct {
+	driver string
 	dsn    string
 	db     *sql.DB
 	result sql.Result
 }
 
-func NewMySql(dsn string) *MySql {
-	instance := MySql{dsn, nil, nil}
+func NewDatabase(driver, dsn string) *Database {
+	instance := Database{driver, dsn, nil, nil}
 	return &instance
 }
 
-func (database *MySql) connect() {
+func (database *Database) connect() {
 	if database.db != nil {
 		return
 	}
 
 	var err error
-	database.db, err = sql.Open("mysql", database.dsn)
+	database.db, err = sql.Open(database.driver, database.dsn)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	database.db.SetMaxOpenConns(10)
+	database.db.SetMaxOpenConns(0)
+	database.db.SetMaxIdleConns(10)
+	database.db.SetConnMaxLifetime(time.Minute * 5)
 }
 
-func (database *MySql) All(query string, parameters ...interface{}) []map[string]*string {
+func (database *Database) All(query string, parameters ...interface{}) []map[string]*string {
 	database.connect()
 	rows, err := database.db.Query(query, parameters...)
 	if err != nil {
@@ -58,7 +62,7 @@ func (database *MySql) All(query string, parameters ...interface{}) []map[string
 	return results
 }
 
-func (database *MySql) Row(query string, parameters ...interface{}) map[string]*string {
+func (database *Database) Row(query string, parameters ...interface{}) map[string]*string {
 	database.connect()
 	rows, err := database.db.Query(query, parameters...)
 	if err != nil {
@@ -82,7 +86,7 @@ func (database *MySql) Row(query string, parameters ...interface{}) map[string]*
 	return nil
 }
 
-func (database *MySql) Exec(query string, parameters ...interface{}) int64 {
+func (database *Database) Exec(query string, parameters ...interface{}) int64 {
 	database.connect()
 
 	var err1 error
@@ -99,7 +103,7 @@ func (database *MySql) Exec(query string, parameters ...interface{}) int64 {
 	return affected
 }
 
-func (database *MySql) LastInsertId() int64 {
+func (database *Database) LastInsertId() int64 {
 	if database.result == nil {
 		return 0
 	}
@@ -112,7 +116,7 @@ func (database *MySql) LastInsertId() int64 {
 	return lastId
 }
 
-func (database *MySql) Close() {
+func (database *Database) Close() {
 	if database.db == nil {
 		return
 	}

@@ -13,7 +13,7 @@ func main() {
 		godotenv.Load(".env")
 	}
 
-	db := core.NewMySql(os.Getenv("MYSQL_DSN"))
+	db := core.NewDatabase("mysql", os.Getenv("MYSQL_DSN"))
 
 	rows := db.All(
 		`SELECT * FROM zipcode WHERE zipcode LIKE ?`,
