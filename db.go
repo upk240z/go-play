@@ -16,12 +16,25 @@ func main() {
 	db := core.NewDatabase("mysql", os.Getenv("MYSQL_DSN"))
 
 	rows := db.All(
-		`SELECT * FROM zipcode WHERE zipcode LIKE ?`,
-		"152%",
+		`SELECT * FROM zipcode WHERE zipcode LIKE :zip`,
+		map[string]interface{}{
+			"zip": "498%",
+		},
 	)
 
 	for _, columns := range rows {
 		fmt.Println(*columns["prefecture_id"], *columns["city"], *columns["town"])
+	}
+
+	row := db.Row(
+		`SELECT * FROM address WHERE zipcode = :zip`,
+		map[string]interface{}{
+			"zip": "1520003",
+		},
+	)
+
+	for key, val := range row {
+		fmt.Println(key, *val)
 	}
 
 	db.Close()

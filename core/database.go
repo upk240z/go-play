@@ -2,20 +2,24 @@ package core
 
 import (
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"regexp"
+	"strings"
 	"time"
 )
 
 type Database struct {
-	driver string
-	dsn    string
-	db     *sql.DB
-	result sql.Result
+	driver              string
+	dsn                 string
+	db                  *sql.DB
+	result              sql.Result
+	query               string
+	parameters          map[string]interface{}
+	convertedParameters []interface{}
 }
 
 func NewDatabase(driver, dsn string) *Database {
-	instance := Database{driver, dsn, nil, nil}
+	instance := Database{driver: driver, dsn: dsn}
 	return &instance
 }
 
@@ -36,12 +40,43 @@ func (database *Database) connect() {
 	database.db.SetConnMaxLifetime(time.Minute * 5)
 }
 
-func (database *Database) All(query string, parameters ...interface{}) []map[string]*string {
+func (database *Database) convertNamedPlaceHolder() {
+	pattern, _ := regexp.Compile(`:([a-z0-9\-_]+)`)
+
+	database.convertedParameters = []interface{}{}
+
+	for {
+		if !pattern.MatchString(database.query) {
+			break
+		}
+
+		mark := pattern.FindString(database.query)
+		p, exists := database.parameters[mark[1:]]
+		if !exists {
+			log.Fatal("parameter not found: " + mark[1:])
+		}
+
+		database.convertedParameters = append(database.convertedParameters, p)
+		database.query = strings.Replace(database.query, mark, "?", 1)
+	}
+}
+
+func (database *Database) queryCommon(query string, parameters map[string]interface{}) *sql.Rows {
 	database.connect()
-	rows, err := database.db.Query(query, parameters...)
+	database.query = query
+	database.parameters = parameters
+	database.convertNamedPlaceHolder()
+
+	rows, err := database.db.Query(database.query, database.convertedParameters...)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return rows
+}
+
+func (database *Database) All(query string, parameters map[string]interface{}) []map[string]*string {
+	rows := database.queryCommon(query, parameters)
 	columns, _ := rows.Columns()
 
 	var results []map[string]*string
@@ -62,12 +97,8 @@ func (database *Database) All(query string, parameters ...interface{}) []map[str
 	return results
 }
 
-func (database *Database) Row(query string, parameters ...interface{}) map[string]*string {
-	database.connect()
-	rows, err := database.db.Query(query, parameters...)
-	if err != nil {
-		log.Fatal(err)
-	}
+func (database *Database) Row(query string, parameters map[string]interface{}) map[string]*string {
+	rows := database.queryCommon(query, parameters)
 	columns, _ := rows.Columns()
 
 	for rows.Next() {
