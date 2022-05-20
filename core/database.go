@@ -41,7 +41,7 @@ func (database *Database) connect() {
 }
 
 func (database *Database) convertNamedPlaceHolder() {
-	pattern, _ := regexp.Compile(`:([a-z0-9\-_]+)`)
+	pattern, _ := regexp.Compile(`:([a-z\d\-_]+)`)
 
 	database.convertedParameters = []interface{}{}
 
@@ -90,7 +90,11 @@ func (database *Database) All(query string, parameters map[string]interface{}) [
 			mapValues[columnName] = &col
 		}
 
-		rows.Scan(pointers...)
+		err := rows.Scan(pointers...)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		results = append(results, mapValues)
 	}
 
@@ -110,7 +114,11 @@ func (database *Database) Row(query string, parameters map[string]interface{}) m
 			mapValues[columnName] = &col
 		}
 
-		rows.Scan(pointers...)
+		err := rows.Scan(pointers...)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		return mapValues
 	}
 

@@ -78,7 +78,10 @@ func sendJson(url string, params interface{}) {
 
 func main() {
 	if _, envErr := os.Stat(".env"); envErr == nil {
-		godotenv.Load(".env")
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	getJson(os.Getenv("JSON_URL"))

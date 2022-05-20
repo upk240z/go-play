@@ -20,5 +20,8 @@ func main() {
 		}
 		fmt.Println(line)
 	}
-	file.Close()
+	err := file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

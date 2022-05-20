@@ -4,13 +4,17 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"log"
 	"os"
 	"play-ground/core"
 )
 
 func main() {
 	if _, envErr := os.Stat(".env"); envErr == nil {
-		godotenv.Load(".env")
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	db := core.NewDatabase("mysql", os.Getenv("MYSQL_DSN"))
