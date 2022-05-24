@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -37,20 +38,16 @@ func getJson(url string) {
 			log.Fatal(err)
 		}
 
+		fmt.Println("=== " + url + " ===")
 		fmt.Println(decoded)
 	}
 }
 
-func sendJson(url string, params interface{}) {
-	jsonData, err := json.Marshal(params)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	reader := bytes.NewReader(jsonData)
+func sendJson(urlStr string, jsonBytes []byte, proxy string) {
+	reader := bytes.NewReader(jsonBytes)
 	req, err := http.NewRequest(
 		"POST",
-		url,
+		urlStr,
 		reader,
 	)
 	if err != nil {
@@ -60,8 +57,18 @@ func sendJson(url string, params interface{}) {
 	req.Header.Add("Content-Type", "application/json")
 
 	conf := &tls.Config{InsecureSkipVerify: true}
-	tr := &http.Transport{TLSClientConfig: conf}
-	client := &http.Client{Transport: tr}
+	tr := &http.Transport{
+		TLSClientConfig: conf,
+	}
+
+	if len(proxy) > 0 {
+		proxyUrl, _ := url.Parse(proxy)
+		tr.Proxy = http.ProxyURL(proxyUrl)
+	}
+
+	client := &http.Client{
+		Transport: tr,
+	}
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -73,7 +80,40 @@ func sendJson(url string, params interface{}) {
 		log.Fatal(err)
 	}
 
-	fmt.Println(string(body))
+	fmt.Println("=== " + urlStr + " ===")
+	for key, val := range res.Header {
+		fmt.Println(key + ":" + strings.Join(val, ","))
+	}
+	fmt.Println("")
+	fmt.Println(beautifyJson(body))
+}
+
+func sendJsonFileViaProxy(url string, proxy string, jsonFile string) {
+	bytes, err := os.ReadFile(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	sendJson(url, bytes, proxy)
+}
+
+func beautifyJson(jsonBytes []byte) string {
+	decoder := json.NewDecoder(bytes.NewReader(jsonBytes))
+	var decoded interface{}
+
+	for {
+		if err := decoder.Decode(&decoded); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+
+		encoded, _ := json.MarshalIndent(decoded, "", "  ")
+		return string(encoded)
+	}
+
+	return ""
 }
 
 func main() {
@@ -84,9 +124,22 @@ func main() {
 		}
 	}
 
-	getJson(os.Getenv("JSON_URL"))
-	sendJson(os.Getenv("ECHO_URL"), map[string]interface{}{
+	//getJson(os.Getenv("JSON_URL"))
+
+	params := map[string]interface{}{
 		"string": "hello",
 		"number": 123,
-	})
+	}
+
+	jsonBytes, err := json.Marshal(params)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sendJson(os.Getenv("ECHO_URL"), jsonBytes, "")
+
+	if len(os.Args) == 2 {
+		jsonFile := os.Args[1]
+		sendJsonFileViaProxy(os.Getenv("API_URL"), os.Getenv("PROXY_URL"), jsonFile)
+	}
 }
