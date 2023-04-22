@@ -10,9 +10,8 @@ import (
 )
 
 func main() {
-	if _, envErr := os.Stat(".env"); envErr == nil {
-		err := godotenv.Load(".env")
-		if err != nil {
+	if _, err := os.Stat(".env"); err == nil {
+		if err := godotenv.Load(".env"); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -33,7 +32,7 @@ func main() {
 	row := db.Row(
 		`SELECT * FROM address WHERE zipcode = :zip`,
 		map[string]interface{}{
-			"zip": "1520003",
+			"zip": "0640918",
 		},
 	)
 
