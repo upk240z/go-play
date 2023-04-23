@@ -15,8 +15,8 @@ type Database struct {
 	db      *sql.DB
 	result  sql.Result
 	query   string
-	named   map[string]interface{}
-	unnamed []interface{}
+	named   map[string]any
+	unnamed []any
 }
 
 func NewDatabase(driver, dsn string) *Database {
@@ -43,7 +43,7 @@ func (database *Database) connect() {
 func (database *Database) anonymize() {
 	pattern, _ := regexp.Compile(`:([a-z\d\-_]+)`)
 
-	database.unnamed = []interface{}{}
+	database.unnamed = []any{}
 
 	for {
 		if !pattern.MatchString(database.query) {
@@ -61,28 +61,27 @@ func (database *Database) anonymize() {
 	}
 }
 
-func (database *Database) queryCommon(query string, parameters map[string]interface{}) *sql.Rows {
+func (database *Database) doCommon(query string, parameters map[string]any) {
 	database.connect()
 	database.query = query
 	database.named = parameters
 	database.anonymize()
+}
+
+func (database *Database) All(query string, parameters map[string]any) []map[string]*string {
+	database.doCommon(query, parameters)
 
 	rows, err := database.db.Query(database.query, database.unnamed...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return rows
-}
-
-func (database *Database) All(query string, parameters map[string]interface{}) []map[string]*string {
-	rows := database.queryCommon(query, parameters)
 	columns, _ := rows.Columns()
 
 	var results []map[string]*string
 
 	for rows.Next() {
-		var pointers []interface{}
+		var pointers []any
 		mapValues := map[string]*string{}
 		for _, columnName := range columns {
 			var col string
@@ -90,9 +89,9 @@ func (database *Database) All(query string, parameters map[string]interface{}) [
 			mapValues[columnName] = &col
 		}
 
-		err := rows.Scan(pointers...)
-		if err != nil {
-			log.Fatal(err)
+		if err := rows.Scan(pointers...); err != nil {
+			log.Println(err)
+			return results
 		}
 
 		results = append(results, mapValues)
@@ -101,29 +100,31 @@ func (database *Database) All(query string, parameters map[string]interface{}) [
 	return results
 }
 
-func (database *Database) Row(query string, parameters map[string]interface{}) map[string]*string {
-	rows := database.queryCommon(query, parameters)
-	columns, _ := rows.Columns()
+func (database *Database) Row(query string, parameters map[string]any) map[string]*string {
+	rows := database.All(query, parameters)
 
-	mapValues := map[string]*string{}
-
-	for rows.Next() {
-		var pointers []interface{}
-		for _, columnName := range columns {
-			var col string
-			pointers = append(pointers, &col)
-			mapValues[columnName] = &col
-		}
-
-		err := rows.Scan(pointers...)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		return mapValues
+	if len(rows) == 0 {
+		return map[string]*string{}
 	}
 
-	return mapValues
+	return rows[0]
+}
+
+func (database *Database) Exec(query string, parameters map[string]any) int64 {
+	database.doCommon(query, parameters)
+
+	if result, err := database.db.Exec(database.query, database.unnamed...); err != nil {
+		log.Fatal(err)
+	} else {
+		database.result = result
+	}
+
+	affected, err := database.result.RowsAffected()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return affected
 }
 
 func (database *Database) LastInsertId() int64 {
@@ -149,19 +150,19 @@ func (database *Database) Close() {
 	}
 }
 
-func (database *Database) Exec(query string, parameters ...interface{}) int64 {
-	database.connect()
-
-	if result, err := database.db.Exec(query, parameters...); err != nil {
-		log.Fatal(err)
-	} else {
-		database.result = result
-	}
-
-	affected, err := database.result.RowsAffected()
+func (database *Database) Begin() *sql.Tx {
+	tx, err := database.db.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return affected
+	return tx
+}
+
+func (database *Database) Prepare(query string) *sql.Stmt {
+	stmt, err := database.db.Prepare(query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return stmt
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"play-ground/core"
+	"time"
 )
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	}
 
 	row := db.Row(
-		`SELECT * FROM address WHERE zipcode = :zip`,
+		`SELECT * FROM zipcode WHERE zipcode = :zip`,
 		map[string]interface{}{
 			"zip": "0640918",
 		},
@@ -38,6 +39,12 @@ func main() {
 	for key, val := range row {
 		fmt.Println(key, *val)
 	}
+
+	parameters := map[string]interface{}{
+		"value": time.Now().Format("2006-01-02 15:04:05"),
+	}
+	affected := db.Exec(`INSERT INTO foo (bar) VALUES (:value)`, parameters)
+	fmt.Printf("affected: %d\n", affected)
 
 	db.Close()
 }
