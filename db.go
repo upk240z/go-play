@@ -20,7 +20,7 @@ func main() {
 
 	rows := db.All(
 		`SELECT * FROM zipcode WHERE zipcode LIKE :zip`,
-		map[string]interface{}{
+		map[string]any{
 			"zip": "498%",
 		},
 	)
@@ -31,7 +31,7 @@ func main() {
 
 	row := db.Row(
 		`SELECT * FROM zipcode WHERE zipcode = :zip`,
-		map[string]interface{}{
+		map[string]any{
 			"zip": "0640918",
 		},
 	)
